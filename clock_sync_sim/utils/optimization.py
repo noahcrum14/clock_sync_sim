@@ -2,8 +2,8 @@ import numpy as np
 from typing import Dict, Any, Tuple, List
 from ..config.settings import SIGMA, C_FIBER
 
-class GradientDescentOptimizer:
-    """Gradient Descent optimizer to find the parameter that minimizes the squared error to the target probability."""
+"""class GradientDescentOptimizer:
+    #Gradient Descent optimizer to find the parameter that minimizes the squared error to the target probability.
     def __init__(self, target_prob: float, objective_fn: callable, bounds: Tuple[float, float], config: Dict[str, Any]):
         self.target = target_prob
         self.objective = objective_fn
@@ -46,7 +46,74 @@ class GradientDescentOptimizer:
         
         fx = self.objective(x)
         history.append((x, fx))
+        return x, history"""
+
+
+class GradientDescentOptimizer:
+    """Gradient Descent optimizer with decaying learning rate for minimizing squared error to the target probability."""
+    
+    def __init__(self, target_prob: float, objective_fn: callable, bounds: Tuple[float, float], config: Dict[str, Any]):
+        self.target = target_prob
+        self.objective = objective_fn
+        self.bounds = bounds
+        self.config = config
+        self.initial_learning_rate = config.get('learning_rate', 0.5)  # Initial learning rate
+        self.tolerance = config.get('tolerance', 1e-5)
+        self.max_iter = config.get('max_iterations', 10)
+        self.h = config.get('gradient_step_size', 1e-5)
+        self.decay_rate = config.get('decay_rate', 0.1)  # Controls learning rate decay
+        self.history = []
+
+    def _compute_learning_rate(self, iteration: int, fx: float) -> float:
+        """Compute a decaying learning rate that slows down as fx approaches the target."""
+        decay_factor = np.exp(-self.decay_rate * iteration)  # Exponential decay
+        proximity_factor = 1 / (1 + abs(fx - self.target))  # Slower updates near the target
+        return self.initial_learning_rate * decay_factor * proximity_factor
+
+    def optimize(self) -> Tuple[float, List[Tuple[float, float]]]:
+        """Perform optimization with gradient descent and decaying learning rate."""
+        history = []
+        x = np.mean(self.bounds)
+        iterations = 0
+        
+        for iter_num in range(self.max_iter):
+            iterations += 1
+            fx = self.objective(x)
+            print(f"Iteration {iterations}: x = {x:.6f}, fx = {fx:.6f}")
+
+            history.append((x, fx))
+            
+            # Compute numerical gradient
+            x_plus = np.clip(x + self.h, *self.bounds)
+            x_minus = np.clip(x - self.h, *self.bounds)
+            f_plus = self.objective(x_plus)
+            f_minus = self.objective(x_minus)
+            
+            gradient = (f_plus - f_minus) / (2 * self.h)
+            if abs(gradient) < 1e-5:
+                print("Flat gradient detected. Adjusting step size.")
+                delta = 1e-3  # Small step to move out of flat regions
+            else:
+                # Compute decaying learning rate
+                learning_rate = self._compute_learning_rate(iter_num, fx)
+                delta = 10 * learning_rate * (fx - self.target) * gradient
+            
+            # Update parameter
+            x_new = np.clip(x - delta, *self.bounds)
+            print(f"Update: Δx = {(x-x_new):.6f}, Learning rate: {learning_rate:.6f}")
+            
+            # Check convergence
+            if abs(x_new - x) < self.tolerance:
+                x = x_new
+                break
+            
+            x = x_new
+        
+        # Final function evaluation
+        fx = self.objective(x)
+        history.append((x, fx))
         return x, history
+    
 
 class GoldenSectionOptimizer:
     """Golden Section Search optimizer to find the extremum (min/max) of the objective function."""

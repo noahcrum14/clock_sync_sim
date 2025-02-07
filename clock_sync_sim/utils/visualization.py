@@ -43,56 +43,6 @@ def plot_results(history, coins):
     plt.grid(True)
 
 
-"""
-def plot_optimization_history(history: List[Tuple[float, float]], 
-                             target: float = None,
-                             param_name: str = "Parameter",
-                             bounds: Tuple[float, float] = None,
-                             save_path: str = None):
-    
-    Visualize the optimization process from optimizer history
-    
-    Args:
-        history: List of (parameter_value, objective_value) tuples
-        target: Target probability value to show as reference line
-        param_name: Name of parameter being optimized for labels
-        bounds: Initial search bounds for visualization
-        save_path: Optional path to save the figure (shows plot if None)
-    
-    plt.figure(figsize=(12, 6))
-    
-    # Extract values from history
-    params, objectives = zip(*history)
-    iterations = np.arange(len(history))
-    
-    # Parameter value progression
-    plt.subplot(1, 2, 1)
-    plt.plot(iterations, params, 'b-o', lw=1.5)
-    plt.title(f"{param_name} Value Progression")
-    plt.xlabel("Iteration")
-    plt.ylabel(param_name)
-    if bounds:
-        plt.axhline(bounds[0], color='r', linestyle='--', alpha=0.5, label='Initial Bounds')
-        plt.axhline(bounds[1], color='r', linestyle='--', alpha=0.5)
-    
-    # Objective value progression
-    plt.subplot(1, 2, 2)
-    plt.plot(iterations, objectives, 'g-s', lw=1.5, label='Objective Value')
-    if target is not None:
-        plt.axhline(target, color='k', linestyle='--', label='Target')
-    plt.title("Objective Value Progression")
-    plt.xlabel("Iteration")
-    plt.ylabel("Coincidence Probability")
-    plt.legend()
-    
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    else:
-        plt.show()
-"""
-
 def plot_optimization_history(history: List[Tuple[float, float]], 
                              target: float = None,
                              param_name: str = "Parameter",
