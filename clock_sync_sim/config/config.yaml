@@ -1,0 +1,42 @@
+# Example configuration
+parties:
+  alice:
+    source_type: "SPDC"
+    rep_rate: 10e6  # 10 MHz repetition rate
+    delay: 0
+    offset: 0
+  bob:
+    source_type: "SPDC"
+    rep_rate: 10e6  # Same repetition rate as Alice
+    delay: 0  # Initial delay (delta_T), will be optimized
+    offset: 0
+
+# Channel parameters
+delta_t_AtoB: 100  # Time for Alice's pulses to reach interferometer (ns)
+delta_t_BtoB: 150  # Initial time for Bob's pulses to reach interferometer (ns)
+delta_t_BtoB_min: 50  # Minimum possible channel delay for Bob
+delta_t_BtoB_max: 250  # Maximum possible channel delay for Bob
+
+# HOM interferometer parameters
+hom_visibility: 0.98  # Visibility of the HOM interferometer
+coincidence_window: 1  # Coincidence window in ns
+
+# Optimization parameters
+optimization:
+  target_coincidence_rate: 0.0  # Target minimum coincidence rate (perfect timing overlap)
+  max_iterations: 100
+  tolerance: 0.1  # Convergence tolerance in ns
+  method: "golden_section"  # Optimization method
+
+distance_alice_to_bob: 20000  # meters
+processing_window: 100  # ns
+search_initial_low: 19500  # meters
+search_initial_high: 20000  # meters
+search_tolerance: 0.1  # meters
+averaging_runs: 5  # Number of runs per evaluation
+optimizer: "gradient_descent"  # or "golden_section"
+max_iter: 100
+learning_rate: 0.1
+momentum: 0.9
+fd_step: 1.0  # Finite difference step size
+target_prob: 0.25
