@@ -25,5 +25,5 @@ cd hom-simulation
 
 ### Run Code
 ```bash
-python scripts/run_simulation.py --config ./config.yaml
+python scripts/run_simulation.py --config ./config/config.yaml
 ```
