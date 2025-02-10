@@ -9,8 +9,9 @@ from pathlib import Path
 from .models.party import Party
 from .utils.calculations import get_coin_prob
 from .config.settings import POL_DICT, DEFAULT_PARAMS
-from .utils.optimization import GradientDescentOptimizer, GoldenSectionOptimizer, SPSAOptimizer
+from .utils.optimization import coarse_search, GradientDescentOptimizer, GoldenSectionOptimizer, SPSAOptimizer
 from .utils.visualization import plot_optimization_history
+from .config.settings import SIGMA
 
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
@@ -190,19 +191,9 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
     # Set bounds on search region
     bounds = (config['search_initial_low'], config['search_initial_high'])
 
-    # Plot coin prob for different distance to eval optimization
-    """x = np.linspace(-200, 200, 1001)
-    probabilities = []
-    center = (bounds[0] + bounds[1]) / 2
-    for value in tqdm(x):
-        probabilities.append(engine.calculate_coincidence(center+value, 1))
-    #print(probabilities)
-    plt.plot(x, probabilities)
-    plt.xlim([-200,200])
-    plt.ylim([0,1])
-    plt.grid()
-    plt.show()"""
-
+    print(f"Searching for optimal MDL distance...")
+    valley_bounds = coarse_search(engine.calculate_coincidence, bounds, 1/(2*SIGMA), num_points=20, samples_per_point=3)
+    print(f"Valley Bounds: {valley_bounds}")
     # Select optimizer based on config
     optimizer_type = config.get('optimizer', 'golden_section')
 
@@ -215,7 +206,7 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
     optimizer = optimizers[optimizer_type](
         target_prob=target_probability,
         objective_fn=engine.calculate_coincidence,  # Raw probability function
-        bounds=bounds,
+        bounds=valley_bounds,
         config=config
     )
 
@@ -226,7 +217,7 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
         history=history,
         target=target_probability,
         param_name="Bob's Distance",
-        bounds=bounds,
+        bounds=valley_bounds,
         save_path=f"Images/optimization_history_{round(time.time(), 4)}.png"
         )
 
