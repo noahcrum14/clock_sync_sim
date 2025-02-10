@@ -1,4 +1,4 @@
-# HOM Interference Simulation Project
+# Clock Synchronization via HOM Interference Simulation Project
 
 A quantum optics simulation toolkit for studying Hong-Ou-Mandel interference phenomena in fiber-optic networks.
 
