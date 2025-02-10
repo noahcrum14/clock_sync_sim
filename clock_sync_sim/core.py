@@ -1,13 +1,17 @@
 import numpy as np
 import yaml
+import time
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 from typing import Tuple, List, Dict, Any
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from .models.party import Party
 from .utils.calculations import get_coin_prob
 from .config.settings import POL_DICT, DEFAULT_PARAMS
-from .utils.optimization import GradientDescentOptimizer, GoldenSectionOptimizer, SPSAOptimizer
+from .utils.optimization import coarse_search, GradientDescentOptimizer, GoldenSectionOptimizer, SPSAOptimizer
 from .utils.visualization import plot_optimization_history
+from .config.settings import SIGMA
 
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
@@ -56,7 +60,7 @@ class SimulationEngine:
 
         return alice_schedule, bob_schedule
 
-    def calculate_coincidence(self, bob_distance: float, n_runs: int = 3) -> float:
+    def calculate_coincidence(self, bob_distance: float, n_runs: int = 1) -> float:
         """Calculate average coincidence probability over multiple runs"""
         with ProcessPoolExecutor() as executor:
             futures = [executor.submit(self._single_run, bob_distance)
@@ -66,7 +70,7 @@ class SimulationEngine:
         # If results contain tuples, extract the first element from each tuple
         if isinstance(results[0], tuple):
             avg_coincidence = np.mean([r[0][0] for r in results])
-            print("Average Coincidence: ", avg_coincidence)
+            #print("Average Coincidence: ", avg_coincidence)
             return avg_coincidence
 
         return np.mean(results)
@@ -119,7 +123,6 @@ class SimulationEngine:
                     coincident_index = i
                     good_events_A = alice_sched[i:]
                     good_events_B = bob_sched[:-i]
-                    print("Ran 1")
                     break
                 else:
                     pass
@@ -130,7 +133,6 @@ class SimulationEngine:
                     coincident_index = i
                     good_events_A = alice_sched[:-i]
                     good_events_B = bob_sched[i:]
-                    print("Ran 2")
                     break
                 else:
                     pass
@@ -159,9 +161,6 @@ class SimulationEngine:
         iter = 0
         for evt1, evt2 in pairs:
             td = evt1['t'] - evt2['t']
-            """if iter == 0:
-                print(f"Time difference: {td}")
-                iter += 1"""
             mismatch = abs(np.dot(
                 POL_DICT[evt1['pol']],
                 POL_DICT[evt2['pol']]
@@ -173,7 +172,7 @@ class SimulationEngine:
             else:
                 coincidents.append(0)
         coincidents = np.asarray(coincidents)
-        coin_rate = sum(coincidents) / len(pairs)
+        coin_rate = p_coin#sum(coincidents) / len(pairs)
        
         return coin_rate, coincidents
 
@@ -186,12 +185,17 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
     engine = SimulationEngine(config)
 
     # Target probability for optimization
-    target_probability = get_coin_prob(1, 1, np.cos(np.pi / 4), 0)
+    target_probability = 0#get_coin_prob(1, 1, np.cos(np.pi / 4), 0)
     post_selection_prob = get_coin_prob(1, 1, 0, 0)
 
-    # Select optimizer based on config
-    optimizer_type = config.get('optimizer', 'gradient_descent')
+    # Set bounds on search region
     bounds = (config['search_initial_low'], config['search_initial_high'])
+
+    print(f"Searching for optimal MDL distance...")
+    valley_bounds = coarse_search(engine.calculate_coincidence, bounds, 1/(2*SIGMA), num_points=20, samples_per_point=3)
+    print(f"Valley Bounds: {valley_bounds}")
+    # Select optimizer based on config
+    optimizer_type = config.get('optimizer', 'golden_section')
 
     optimizers = {
         'golden_section': GoldenSectionOptimizer,
@@ -202,13 +206,10 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
     optimizer = optimizers[optimizer_type](
         target_prob=target_probability,
         objective_fn=engine.calculate_coincidence,  # Raw probability function
-        bounds=bounds,
+        bounds=valley_bounds,
         config=config
     )
 
-    optimal_dist, history = optimizer.optimize()
-
-    # After running your optimization:
     optimal_dist, history = optimizer.optimize()
 
     # Plot the results
@@ -216,8 +217,8 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
         history=history,
         target=target_probability,
         param_name="Bob's Distance",
-        bounds=bounds,
-        save_path="optimization_history.png"
+        bounds=valley_bounds,
+        save_path=f"Images/optimization_history_{round(time.time(), 4)}.png"
         )
 
     # Final verification run

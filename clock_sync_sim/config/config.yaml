@@ -34,7 +34,7 @@ search_initial_low: 19500  # meters
 search_initial_high: 20000  # meters
 search_tolerance: 0.1  # meters
 averaging_runs: 5  # Number of runs per evaluation
-optimizer: "gradient_descent"  # or "golden_section"
+optimizer: "golden_section"  # or "golden_section"
 max_iter: 100
 learning_rate: 0.1
 momentum: 0.9

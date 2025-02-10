@@ -2,51 +2,16 @@ import numpy as np
 from typing import Dict, Any, Tuple, List
 from ..config.settings import SIGMA, C_FIBER
 
-"""class GradientDescentOptimizer:
-    #Gradient Descent optimizer to find the parameter that minimizes the squared error to the target probability.
-    def __init__(self, target_prob: float, objective_fn: callable, bounds: Tuple[float, float], config: Dict[str, Any]):
-        self.target = target_prob
-        self.objective = objective_fn
-        self.bounds = bounds
-        self.config = config
-        self.learning_rate = config.get('learning_rate', 0.5)
-        self.tolerance = config.get('tolerance', 1e-5)
-        self.max_iter = config.get('max_iterations', 10)
-        self.h = config.get('gradient_step_size', 1e-5)
-        self.history = []
 
-    def optimize(self) -> Tuple[float, List[Tuple[float, float]]]:
-        history = []
-        x = np.mean(self.bounds)
-        iterations = 0
-        for _ in range(self.max_iter):
-            iterations += 1
-            fx = self.objective(x)
-            print("Value fx:", fx)
-            history.append((x, fx))
-            
-            x_plus = np.clip(x + self.h, *self.bounds)
-            x_minus = np.clip(x - self.h, *self.bounds)
-            f_plus = self.objective(x_plus)
-            f_minus = self.objective(x_minus)
-            
-            gradient = (f_plus - f_minus) / (2 * self.h)
-            if abs(gradient) < 1e-5:
-                print("Flat grad stepping further")
-                delta = 1/SIGMA; 
-            else:
-                delta = 10*self.learning_rate * (fx - self.target) * gradient
-            x_new = np.clip(x - delta, *self.bounds)
-            print("Update to delay time: ", (x-x_new)/C_FIBER)
-            
-            if abs(x_new - x) < self.tolerance:
-                x = x_new
-                break
-            x = x_new
-        
-        fx = self.objective(x)
-        history.append((x, fx))
-        return x, history"""
+def coarse_search(objective_fn, bounds, valley_width, num_points=20, samples_per_point=5):
+    x_samples = np.linspace(bounds[0], bounds[1], num_points)
+    means = []
+    for x in x_samples:
+        # Average multiple evaluations to mitigate noise
+        f_vals = [objective_fn(x) for _ in range(samples_per_point)]
+        means.append(np.mean(f_vals))
+    valley_center = x_samples[np.argmin(means)]
+    return [valley_center - valley_width/2, valley_center + valley_width/2]
 
 
 class GradientDescentOptimizer:
@@ -57,57 +22,66 @@ class GradientDescentOptimizer:
         self.objective = objective_fn
         self.bounds = bounds
         self.config = config
-        self.initial_learning_rate = config.get('learning_rate', 0.5)  # Initial learning rate
+        self.initial_learning_rate = config.get('learning_rate', 0.1)  # Initial learning rate
         self.tolerance = config.get('tolerance', 1e-5)
-        self.max_iter = config.get('max_iterations', 10)
+        self.max_iter = config.get('max_iterations', 80)
         self.h = config.get('gradient_step_size', 1e-5)
-        self.decay_rate = config.get('decay_rate', 0.1)  # Controls learning rate decay
+        self.decay_rate = config.get('decay_rate', 1e-2)  # Controls learning rate decay
         self.history = []
+        self.momentum = 0  # Initialize momentum
+        self.target_tolerance = 0.01 # Tolerance for target probability
 
     def _compute_learning_rate(self, iteration: int, fx: float) -> float:
-        """Compute a decaying learning rate that slows down as fx approaches the target."""
-        decay_factor = np.exp(-self.decay_rate * iteration)  # Exponential decay
-        proximity_factor = 1 / (1 + abs(fx - self.target))  # Slower updates near the target
-        return self.initial_learning_rate * decay_factor * proximity_factor
+        """Compute a more stable decaying learning rate."""
+        decay_factor = 1 / (1 + self.decay_rate * iteration)  # Linear decay instead of exponential
+        return max(self.initial_learning_rate * decay_factor, 1e-3)  # Ensure minimum step size
 
     def optimize(self) -> Tuple[float, List[Tuple[float, float]]]:
         """Perform optimization with gradient descent and decaying learning rate."""
         history = []
         x = np.mean(self.bounds)
-        iterations = 0
-        
+
         for iter_num in range(self.max_iter):
-            iterations += 1
             fx = self.objective(x)
-            print(f"Iteration {iterations}: x = {x:.6f}, fx = {fx:.6f}")
+            print(f"Iteration {iter_num+1}: x = {x:.6f}, fx = {fx:.6f}")
 
             history.append((x, fx))
             
             # Compute numerical gradient
+            #self.h = 10 #max(1e-5, abs(x) * 1e-3)  # Scale step with x
+
             x_plus = np.clip(x + self.h, *self.bounds)
             x_minus = np.clip(x - self.h, *self.bounds)
             f_plus = self.objective(x_plus)
             f_minus = self.objective(x_minus)
             
             gradient = (f_plus - f_minus) / (2 * self.h)
-            if abs(gradient) < 1e-5:
-                print("Flat gradient detected. Adjusting step size.")
-                delta = 1e-3  # Small step to move out of flat regions
+            print("Gradient:", {gradient})
+
+            learning_rate = self._compute_learning_rate(iter_num, fx)
+
+            if abs(gradient) < 1e-3:  # Flat gradient
+                if abs(fx - self.target) < self.target_tolerance:
+                    print(f"Converged to within {self.target_tolerance*100}% of target probability.")
+                    break
+                else:
+                    self.momentum += 1  # Accumulate momentum
+                    delta = self.momentum * np.sign(fx - self.target)
             else:
-                # Compute decaying learning rate
-                learning_rate = self._compute_learning_rate(iter_num, fx)
-                delta = 10 * learning_rate * (fx - self.target) * gradient
-            
+                self.momentum = 0  # Reset momentum when gradient is active
+                delta = learning_rate * (fx - self.target) * gradient * 1/(SIGMA**2 * C_FIBER**2)
+
+
             # Update parameter
             x_new = np.clip(x - delta, *self.bounds)
-            print(f"Update: Δx = {(x-x_new):.6f}, Learning rate: {learning_rate:.6f}")
-            
-            # Check convergence
-            if abs(x_new - x) < self.tolerance:
-                x = x_new
-                break
+            print(f"Update: Δx = {(x-x_new):.6f}, Learning rate: {learning_rate:.6f}\n")
             
             x = x_new
+
+            # Check convergence
+            if abs(fx - self.target) < self.target_tolerance:
+                print(f"Converged to within {self.target_tolerance*100}% of target probability.")
+                break
         
         # Final function evaluation
         fx = self.objective(x)
@@ -122,7 +96,7 @@ class GoldenSectionOptimizer:
         self.bounds = bounds
         self.config = config
         self.tolerance = config.get('tolerance', 1e-5)
-        self.max_iter = config.get('max_iterations', 10)
+        self.max_iter = config.get('max_iterations', 30)
         self.golden_ratio = (np.sqrt(5) - 1) / 2
         self.mode = config.get('golden_section_mode', 'min')
         self.history = []
@@ -166,16 +140,18 @@ class GoldenSectionOptimizer:
         self.history.append((optimal_x, optimal_f))
         return optimal_x, self.history
 
+
 class SPSAOptimizer:
     """Simultaneous Perturbation Stochastic Approximation optimizer for noisy objective functions."""
     def __init__(self, target_prob: float, objective_fn: callable, bounds: Tuple[float, float], config: Dict[str, Any]):
         self.target = target_prob
+        self.target_tolerance = 0.01
         self.objective = objective_fn
         self.bounds = bounds
         self.config = config
         self.tolerance = config.get('tolerance', 1e-5)
-        self.max_iter = config.get('max_iterations', 100)
-        self.a = config.get('spsa_a', 1.0)
+        self.max_iter = config.get('max_iterations', 30)
+        self.a = config.get('spsa_a', 2.0)
         self.c = config.get('spsa_c', 0.1)
         self.alpha = config.get('spsa_alpha', 0.602)
         self.gamma = config.get('spsa_gamma', 0.101)
@@ -197,9 +173,26 @@ class SPSAOptimizer:
             f_minus = self.objective(x_minus)
             history.extend([(x_plus, f_plus), (x_minus, f_minus)])
 
-            ghat = ((f_plus - self.target)**2 - (f_minus - self.target)**2) / (2 * ck * delta)
-            x_new = np.clip(x - ak * ghat, *self.bounds)
+            """ghat = ((f_plus - self.target)**2 - (f_minus - self.target)**2) / (2 * ck * delta)\
+                   * 1/(SIGMA**2 * C_FIBER**2)"""
+            
+            ghat = (f_plus - f_minus) / (2 * ck * delta) * 1/(SIGMA**2 * C_FIBER**2)
+            ghat = np.clip(ghat , *[-8, 8])
 
+            print(ak, ghat)
+            if abs(ghat) < 1e-3:  # Flat gradient
+                print("Flat gradient detected. Adjusting step size.")
+                #print(f_plus, f_minus)
+                if abs((f_plus + f_minus)/2 - self.target) < self.target_tolerance:
+                    print(f"Converged to within {self.target_tolerance*100}% of target probability.")
+                    break
+                else:
+                    ghat = 2  # Add momentum
+                    x_new = np.clip(x - ak * ghat, *self.bounds)         
+            else:   
+                x_new = np.clip(x - ak * ghat, *self.bounds)
+            
+            print(x, x_new, x_new - x)
             if abs(x_new - x) < self.tolerance:
                 x = x_new
                 break

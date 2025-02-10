@@ -1,5 +1,4 @@
 import sys
-import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 from pathlib import Path
@@ -16,7 +15,7 @@ if __name__ == "__main__":
     parser.add_argument('--config', type=str, default='config.yaml')
     args = parser.parse_args()
 
-    print("Running simulation.")
+    print(f"Running simulation")
     optimal_distance, history, optimal_prob, coins, coin_index = run_full_simulation(args.config)
 
     print(f"Optimal MDL Distance: {optimal_distance:.2f} meters")

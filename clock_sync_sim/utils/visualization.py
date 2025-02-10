@@ -68,10 +68,11 @@ def plot_optimization_history(history: List[Tuple[float, float]],
     iterations = np.arange(len(history))
 
     # **Parameter value progression plot**
-    axs[0].plot(iterations, params, marker='o', linestyle='-', lw=2, color='#00FFFF', alpha=0.85, label=param_name)
+    axs[0].plot(iterations, params, marker='o', markersize=4, linestyle='-', lw=0.8, color='#00FFFF', alpha=0.85, label=param_name)
     axs[0].set_title(f"{param_name} Value Progression", color='white', fontsize=14, fontweight='bold')
     axs[0].set_xlabel("Iteration", color='white', fontsize=12)
     axs[0].set_ylabel(param_name, color='white', fontsize=12)
+    axs[0].set_xlim(0, iterations[-1])
     axs[0].grid(True, linestyle='--', alpha=0.3)
 
     # Bounds visualization
@@ -82,13 +83,14 @@ def plot_optimization_history(history: List[Tuple[float, float]],
     axs[0].legend(frameon=False, fontsize=10, loc="best", facecolor='#121212')
 
     # **Objective value progression plot**
-    axs[1].plot(iterations, objectives, marker='s', linestyle='-', lw=2, color='#FF00FF', alpha=0.85, label='Objective Value')
+    axs[1].plot(iterations, objectives, marker='s', markersize=4, linestyle='-', lw=0.8, color='#FF00FF', alpha=0.85, label='Objective Value')
     if target is not None:
-        axs[1].axhline(target, color='white', linestyle='--', lw=2, alpha=0.7, label='Target')
+        axs[1].axhline(target, color='white', linestyle='--', lw=0.8, alpha=0.7, label='Target')
 
     axs[1].set_title("Objective Value Progression", color='white', fontsize=14, fontweight='bold')
     axs[1].set_xlabel("Iteration", color='white', fontsize=12)
     axs[1].set_ylabel("Coincidence Probability", color='white', fontsize=12)
+    axs[1].set_xlim(0, iterations[-1])
     axs[1].grid(True, linestyle='--', alpha=0.3)
     
     axs[1].legend(frameon=False, fontsize=10, loc="best", facecolor='#121212')
