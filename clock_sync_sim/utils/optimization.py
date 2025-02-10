@@ -2,52 +2,6 @@ import numpy as np
 from typing import Dict, Any, Tuple, List
 from ..config.settings import SIGMA, C_FIBER
 
-"""class GradientDescentOptimizer:
-    #Gradient Descent optimizer to find the parameter that minimizes the squared error to the target probability.
-    def __init__(self, target_prob: float, objective_fn: callable, bounds: Tuple[float, float], config: Dict[str, Any]):
-        self.target = target_prob
-        self.objective = objective_fn
-        self.bounds = bounds
-        self.config = config
-        self.learning_rate = config.get('learning_rate', 0.5)
-        self.tolerance = config.get('tolerance', 1e-5)
-        self.max_iter = config.get('max_iterations', 10)
-        self.h = config.get('gradient_step_size', 1e-5)
-        self.history = []
-
-    def optimize(self) -> Tuple[float, List[Tuple[float, float]]]:
-        history = []
-        x = np.mean(self.bounds)
-        iterations = 0
-        for _ in range(self.max_iter):
-            iterations += 1
-            fx = self.objective(x)
-            print("Value fx:", fx)
-            history.append((x, fx))
-            
-            x_plus = np.clip(x + self.h, *self.bounds)
-            x_minus = np.clip(x - self.h, *self.bounds)
-            f_plus = self.objective(x_plus)
-            f_minus = self.objective(x_minus)
-            
-            gradient = (f_plus - f_minus) / (2 * self.h)
-            if abs(gradient) < 1e-5:
-                print("Flat grad stepping further")
-                delta = 1/SIGMA; 
-            else:
-                delta = 10*self.learning_rate * (fx - self.target) * gradient
-            x_new = np.clip(x - delta, *self.bounds)
-            print("Update to delay time: ", (x-x_new)/C_FIBER)
-            
-            if abs(x_new - x) < self.tolerance:
-                x = x_new
-                break
-            x = x_new
-        
-        fx = self.objective(x)
-        history.append((x, fx))
-        return x, history"""
-
 
 class GradientDescentOptimizer:
     """Gradient Descent optimizer with decaying learning rate for minimizing squared error to the target probability."""
@@ -57,50 +11,64 @@ class GradientDescentOptimizer:
         self.objective = objective_fn
         self.bounds = bounds
         self.config = config
-        self.initial_learning_rate = config.get('learning_rate', 0.5)  # Initial learning rate
+        self.initial_learning_rate = config.get('learning_rate', 10)  # Initial learning rate
         self.tolerance = config.get('tolerance', 1e-5)
-        self.max_iter = config.get('max_iterations', 10)
+        self.max_iter = config.get('max_iterations', 80)
         self.h = config.get('gradient_step_size', 1e-5)
         self.decay_rate = config.get('decay_rate', 0.1)  # Controls learning rate decay
         self.history = []
+        self.momentum = 0  # Initialize momentum
 
     def _compute_learning_rate(self, iteration: int, fx: float) -> float:
-        """Compute a decaying learning rate that slows down as fx approaches the target."""
-        decay_factor = np.exp(-self.decay_rate * iteration)  # Exponential decay
-        proximity_factor = 1 / (1 + abs(fx - self.target))  # Slower updates near the target
-        return self.initial_learning_rate * decay_factor * proximity_factor
+        """Compute a more stable decaying learning rate."""
+        decay_factor = 1 / (1 + self.decay_rate * iteration)  # Linear decay instead of exponential
+        return max(self.initial_learning_rate * decay_factor, 1e-3)  # Ensure minimum step size
+
 
     def optimize(self) -> Tuple[float, List[Tuple[float, float]]]:
         """Perform optimization with gradient descent and decaying learning rate."""
         history = []
-        x = np.mean(self.bounds)
-        iterations = 0
-        
+        x = self.bounds[1]#np.mean(self.bounds)
+
         for iter_num in range(self.max_iter):
-            iterations += 1
             fx = self.objective(x)
-            print(f"Iteration {iterations}: x = {x:.6f}, fx = {fx:.6f}")
+            print(f"Iteration {iter_num+1}: x = {x:.6f}, fx = {fx:.6f}")
 
             history.append((x, fx))
             
             # Compute numerical gradient
+            self.h = 10 #max(1e-5, abs(x) * 1e-3)  # Scale step with x
+
             x_plus = np.clip(x + self.h, *self.bounds)
             x_minus = np.clip(x - self.h, *self.bounds)
             f_plus = self.objective(x_plus)
             f_minus = self.objective(x_minus)
             
             gradient = (f_plus - f_minus) / (2 * self.h)
-            if abs(gradient) < 1e-5:
+            print("Gradient:", {gradient})
+
+            learning_rate = self._compute_learning_rate(iter_num, fx)
+
+            """
+            if abs(gradient) < 1e-2:
                 print("Flat gradient detected. Adjusting step size.")
-                delta = 1e-3  # Small step to move out of flat regions
+                delta = 10  # Small step to move out of flat regions
             else:
                 # Compute decaying learning rate
-                learning_rate = self._compute_learning_rate(iter_num, fx)
-                delta = 10 * learning_rate * (fx - self.target) * gradient
-            
+                delta = learning_rate * (fx - self.target) * gradient * 1/(SIGMA**2 * C_FIBER**2)
+            """
+
+            if abs(gradient) < 1e-3:  # Flat gradient
+                self.momentum += 5  # Accumulate momentum
+                delta = self.momentum * np.sign(fx - self.target)
+            else:
+                self.momentum = 0  # Reset momentum when gradient is active
+                delta = learning_rate * (fx - self.target) * gradient * 1/(SIGMA**2 * C_FIBER**2)
+
+
             # Update parameter
             x_new = np.clip(x - delta, *self.bounds)
-            print(f"Update: Δx = {(x-x_new):.6f}, Learning rate: {learning_rate:.6f}")
+            print(f"Update: Δx = {(x-x_new):.6f}, Learning rate: {learning_rate:.6f}\n")
             
             # Check convergence
             if abs(x_new - x) < self.tolerance:

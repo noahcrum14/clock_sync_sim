@@ -1,5 +1,8 @@
 import numpy as np
 import yaml
+import time
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 from typing import Tuple, List, Dict, Any
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -56,7 +59,7 @@ class SimulationEngine:
 
         return alice_schedule, bob_schedule
 
-    def calculate_coincidence(self, bob_distance: float, n_runs: int = 3) -> float:
+    def calculate_coincidence(self, bob_distance: float, n_runs: int = 1) -> float:
         """Calculate average coincidence probability over multiple runs"""
         with ProcessPoolExecutor() as executor:
             futures = [executor.submit(self._single_run, bob_distance)
@@ -66,7 +69,7 @@ class SimulationEngine:
         # If results contain tuples, extract the first element from each tuple
         if isinstance(results[0], tuple):
             avg_coincidence = np.mean([r[0][0] for r in results])
-            print("Average Coincidence: ", avg_coincidence)
+            #print("Average Coincidence: ", avg_coincidence)
             return avg_coincidence
 
         return np.mean(results)
@@ -119,7 +122,6 @@ class SimulationEngine:
                     coincident_index = i
                     good_events_A = alice_sched[i:]
                     good_events_B = bob_sched[:-i]
-                    print("Ran 1")
                     break
                 else:
                     pass
@@ -130,7 +132,6 @@ class SimulationEngine:
                     coincident_index = i
                     good_events_A = alice_sched[:-i]
                     good_events_B = bob_sched[i:]
-                    print("Ran 2")
                     break
                 else:
                     pass
@@ -159,9 +160,6 @@ class SimulationEngine:
         iter = 0
         for evt1, evt2 in pairs:
             td = evt1['t'] - evt2['t']
-            """if iter == 0:
-                print(f"Time difference: {td}")
-                iter += 1"""
             mismatch = abs(np.dot(
                 POL_DICT[evt1['pol']],
                 POL_DICT[evt2['pol']]
@@ -173,7 +171,7 @@ class SimulationEngine:
             else:
                 coincidents.append(0)
         coincidents = np.asarray(coincidents)
-        coin_rate = sum(coincidents) / len(pairs)
+        coin_rate = p_coin#sum(coincidents) / len(pairs)
        
         return coin_rate, coincidents
 
@@ -186,12 +184,27 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
     engine = SimulationEngine(config)
 
     # Target probability for optimization
-    target_probability = get_coin_prob(1, 1, np.cos(np.pi / 4), 0)
+    target_probability = 0#get_coin_prob(1, 1, np.cos(np.pi / 4), 0)
     post_selection_prob = get_coin_prob(1, 1, 0, 0)
 
-    # Select optimizer based on config
-    optimizer_type = config.get('optimizer', 'gradient_descent')
+    # Set bounds on search region
     bounds = (config['search_initial_low'], config['search_initial_high'])
+
+    # Plot coin prob for different distance to eval optimization
+    """x = np.linspace(-200, 200, 1001)
+    probabilities = []
+    center = (bounds[0] + bounds[1]) / 2
+    for value in tqdm(x):
+        probabilities.append(engine.calculate_coincidence(center+value, 1))
+    #print(probabilities)
+    plt.plot(x, probabilities)
+    plt.xlim([-200,200])
+    plt.ylim([0,1])
+    plt.grid()
+    plt.show()"""
+
+    # Select optimizer based on config
+    optimizer_type = config.get('optimizer', 'golden_section')
 
     optimizers = {
         'golden_section': GoldenSectionOptimizer,
@@ -208,16 +221,13 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
 
     optimal_dist, history = optimizer.optimize()
 
-    # After running your optimization:
-    optimal_dist, history = optimizer.optimize()
-
     # Plot the results
     plot_optimization_history(
         history=history,
         target=target_probability,
         param_name="Bob's Distance",
         bounds=bounds,
-        save_path="optimization_history.png"
+        save_path=f"Images/optimization_history_{round(time.time(), 4)}.png"
         )
 
     # Final verification run

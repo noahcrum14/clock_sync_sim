@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.special
 
 class Party:
     def __init__(self, worldtime, party_id, source_type, rep_rate, delay, offset):
@@ -10,8 +9,8 @@ class Party:
         self.event_spacing_ns = int(1e9 / self.rep_rate)  # Convert Hz to ns
         self.delay = delay  # In ns
         self.offset = offset  # In ns
-        self.interval_length = 40000
-        self.pols = ['h', 'v', 'd', 'a']
+        self.interval_length = 5000
+        self.pols = ['h']#, 'v', 'd', 'a']
         self.velocity = 0.20818920694444445  # c in fiber [m/ns]
         self.sigma = 0.75
 

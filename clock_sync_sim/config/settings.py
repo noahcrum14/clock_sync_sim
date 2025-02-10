@@ -18,7 +18,7 @@ DEFAULT_PARAMS = {
         'alice': {
             'source_type': "SPDC",
             'rep_rate': 10e6,
-            'delay': 5754,
+            'delay': 370,
             'offset': 0
         },
         'bob': {
@@ -30,8 +30,8 @@ DEFAULT_PARAMS = {
     },
     'distance_alice_to_bob': 19_800,
     'processing_window': 100,
-    'search_initial_low': 19_000,
-    'search_initial_high': 24_000,
+    'search_initial_low': 19_700,
+    'search_initial_high': 19_900,
     'search_tolerance': 0.1,
     'averaging_runs': 1,  # Number of runs per evaluation
     'optimizer': "gradient_descent",  # or "golden_section"
