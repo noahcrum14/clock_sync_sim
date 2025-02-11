@@ -11,16 +11,6 @@ parties:
     delay: 0  # Initial delay (delta_T), will be optimized
     offset: 0
 
-# Channel parameters
-delta_t_AtoB: 100  # Time for Alice's pulses to reach interferometer (ns)
-delta_t_BtoB: 150  # Initial time for Bob's pulses to reach interferometer (ns)
-delta_t_BtoB_min: 50  # Minimum possible channel delay for Bob
-delta_t_BtoB_max: 250  # Maximum possible channel delay for Bob
-
-# HOM interferometer parameters
-hom_visibility: 0.98  # Visibility of the HOM interferometer
-coincidence_window: 1  # Coincidence window in ns
-
 # Optimization parameters
 optimization:
   target_coincidence_rate: 0.0  # Target minimum coincidence rate (perfect timing overlap)
@@ -40,3 +30,4 @@ learning_rate: 0.1
 momentum: 0.9
 fd_step: 1.0  # Finite difference step size
 target_prob: 0.25
+phase: 1  # set to 2 for phase 2 (Alice and Bob swap roles)

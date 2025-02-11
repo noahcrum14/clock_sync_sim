@@ -9,10 +9,9 @@ class Party:
         self.event_spacing_ns = int(1e9 / self.rep_rate)  # Convert Hz to ns
         self.delay = delay  # In ns
         self.offset = offset  # In ns
-        self.interval_length = 15000
+        self.interval_length = 30000
         self.pols = ['h', 'v', 'd', 'a']
         self.velocity = 0.20818920694444445  # c in fiber [m/ns]
-        self.sigma = 0.75
 
     def pol_selection(self):
         """Select a random polarization state."""

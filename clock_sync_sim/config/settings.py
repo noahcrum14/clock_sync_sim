@@ -34,10 +34,9 @@ DEFAULT_PARAMS = {
     'search_initial_high': 19_900,
     'search_tolerance': 0.1,
     'averaging_runs': 1,  # Number of runs per evaluation
-    'optimizer': "gradient_descent",  # or "golden_section"
+    'optimizer': "golden_section",  # or "golden_section"
     'max_iter': 100,
     'learning_rate': 0.1,
     'momentum': 0.9,
     'fd_step': 1.0,  # Finite difference step size
-    'target_probability': 0.25,  # Add this line
 }

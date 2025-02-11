@@ -28,10 +28,12 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
 
 
 class SimulationEngine:
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None, phase: int = 1):
         self.config = load_config() if config is None else config
         self.alice = self._create_party('Alice')
         self.bob = self._create_party('Bob')
+        if phase == 2:
+            self.alice, self.bob = self.bob, self.alice
         self.history = []
 
     def _create_party(self, party_id: str) -> Party:
@@ -172,29 +174,29 @@ class SimulationEngine:
             else:
                 coincidents.append(0)
         coincidents = np.asarray(coincidents)
-        coin_rate = p_coin#sum(coincidents) / len(pairs)
+        coin_rate = sum(coincidents) / len(pairs)
        
         return coin_rate, coincidents
 
 
-def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, List, float]:
+def run_full_simulation(config_path: str = None, phase: int=1) -> Tuple[float, List, float, List, float]:
     # Load config
     config = load_config(config_path)
 
     # Initialize simulation engine
-    engine = SimulationEngine(config)
+    engine = SimulationEngine(config, phase)
 
     # Target probability for optimization
-    target_probability = 0#get_coin_prob(1, 1, np.cos(np.pi / 4), 0)
+    target_probability = get_coin_prob(1, 1, np.cos(np.pi / 4), 0)
     post_selection_prob = get_coin_prob(1, 1, 0, 0)
 
     # Set bounds on search region
     bounds = (config['search_initial_low'], config['search_initial_high'])
 
-    print(f"Searching for optimal MDL distance...")
-    valley_bounds = coarse_search(engine.calculate_coincidence, bounds, 1/(2*SIGMA), num_points=20, samples_per_point=3)
+    print(f"Searching for optimal MDL distance for target probability = {target_probability}...")
+    valley_bounds = coarse_search(engine.calculate_coincidence, bounds, 1/(SIGMA), num_points=20, samples_per_point=3)
     print(f"Valley Bounds: {valley_bounds}")
-    # Select optimizer based on config
+    # Select optimizer based on config 
     optimizer_type = config.get('optimizer', 'golden_section')
 
     optimizers = {
@@ -203,6 +205,7 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
         'spsa': SPSAOptimizer
     }
 
+    print(f"Optimizing with {optimizer_type}...")
     optimizer = optimizers[optimizer_type](
         target_prob=target_probability,
         objective_fn=engine.calculate_coincidence,  # Raw probability function
@@ -212,13 +215,14 @@ def run_full_simulation(config_path: str = None) -> Tuple[float, List, float, Li
 
     optimal_dist, history = optimizer.optimize()
 
+    param_names = ["Bob's Distance", "Alice's Distance"]
     # Plot the results
     plot_optimization_history(
         history=history,
         target=target_probability,
-        param_name="Bob's Distance",
+        param_name=param_names[phase],
         bounds=valley_bounds,
-        save_path=f"Images/optimization_history_{round(time.time(), 4)}.png"
+        save_path=f"Images/phase_{phase}_opt_history_{round(time.time(), 4)}.png"
         )
 
     # Final verification run
