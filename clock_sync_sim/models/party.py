@@ -1,4 +1,6 @@
 import numpy as np
+from ..utils.calculations import *
+from ..config.settings import SIGMA, C_FIBER, SIGMA_JITTER
 
 class Party:
     def __init__(self, worldtime, party_id, source_type, rep_rate, delay, offset, mu=1):
@@ -10,9 +12,11 @@ class Party:
         self.event_spacing_ns = int(1e9 / self.rep_rate)  # Convert Hz to ns
         self.delay = delay  # In ns
         self.offset = offset  # In ns
-        self.interval_length = 30000
+        self.interval_length = 5000
         self.pols = ['h', 'v', 'd', 'a']
         self.velocity = 0.20818920694444445  # c in fiber [m/ns]
+        self.wavelength = 1550 * 10 ** -9 #wavelength in [m]
+        self.d_lambda = self.wavelength**2/self.velocity * (SIGMA * 10 ** 12)
 
     def pol_selection(self):
         """Select a random polarization state."""
@@ -35,14 +39,17 @@ class Party:
     def clock_reading(self, schedule, index):
         """Determine the local time reading of a schedule event."""
         event = schedule[index]['t']
-        return event + self.offset
+        return event + self.offset + jitter(SIGMA_JITTER)
 
     def propagate(self, schedule, distance):
         """Add the propagation time to the schedule."""
         for i in range(len(schedule)):
-            schedule[i]['t'] += distance / self.velocity
+            schedule[i]['t'] += distance / self.velocity \
+                                + jitter(SIGMA_JITTER) \
+                                + chromatic_dispersion(distance, self.d_lambda)\
+                                + pmd(distance)
         return schedule
 
     def give_pol_record(self, schedule):
         """Return a list of polarization states from a schedule."""
-        return [schedule[i]['pol'] for i in range(len(schedule.keys()))]
+        return [schedule[i]['pol'] for i in range(len(schedule))]
