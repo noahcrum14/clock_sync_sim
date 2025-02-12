@@ -1,13 +1,11 @@
 import numpy as np
 import yaml
 import time
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 from typing import Tuple, List, Dict, Any
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from .models.party import Party
-from .utils.calculations import get_coin_prob
+from .utils.calculations import *
 from .config.settings import POL_DICT, DEFAULT_PARAMS
 from .utils.optimization import coarse_search, GradientDescentOptimizer, GoldenSectionOptimizer, SPSAOptimizer
 from .utils.visualization import plot_optimization_history
@@ -45,7 +43,8 @@ class SimulationEngine:
             source_type=params['source_type'],
             rep_rate=params['rep_rate'],
             delay=params['delay'],
-            offset=params['offset']
+            offset=params['offset'],
+            mu = params['mu']
         )
 
     def _propagate_schedules(self, bob_distance: float) -> Tuple[Dict, Dict]:
@@ -160,15 +159,22 @@ class SimulationEngine:
     def _calculate_coin_rate(self, pairs: List) -> float:
         """Calculate coincidence rate for event pairs"""
         coincidents = []
-        iter = 0
         for evt1, evt2 in pairs:
+            # Generate Visibility Data
+            wb = 193.3
+            w = np.linspace(wb - 10, wb + 10, 2701)
+            shape = 'gaussian'
             td = evt1['t'] - evt2['t']
+
+            phi, phi2 = get_envelopes(shape, shape, SIGMA, SIGMA, wb, wb, w, tau=td)
+
             mismatch = abs(np.dot(
                 POL_DICT[evt1['pol']],
                 POL_DICT[evt2['pol']]
             ))
-            p_coin = get_coin_prob(1, 1, mismatch, td)
-            #coin_count += np.random.uniform() < p_coin
+            p_coin = P_Co(evt1['photons'], evt2['photons'], POL_DICT[evt1['pol']], POL_DICT[evt2['pol']],\
+                          phi, phi2, w)
+
             if np.random.uniform() < p_coin:
                 coincidents.append(1)
             else:
@@ -187,8 +193,20 @@ def run_full_simulation(config_path: str = None, phase: int=1) -> Tuple[float, L
     engine = SimulationEngine(config, phase)
 
     # Target probability for optimization
-    target_probability = get_coin_prob(1, 1, np.cos(np.pi / 4), 0)
-    post_selection_prob = get_coin_prob(1, 1, 0, 0)
+    wb = 193.3
+    w = np.linspace(wb - 10, wb + 10, 2701)
+    shape = 'gaussian'
+    td = 0
+    pol_A = np.asarray([1,0])
+    pol_B = 1/np.sqrt(2)*np.asarray([1, 1])
+    phi, phi2 = get_envelopes(shape, shape, SIGMA, SIGMA, wb, wb, w, tau=td)
+
+    target_probability = calculate_probability(engine.alice.source, engine.bob.source, engine.alice.mu, engine.bob.mu,\
+                          pol_A, pol_B, phi, phi2, w)
+    pol_A = np.asarray([1, 0])
+    pol_B = pol_A
+    post_selection_prob = calculate_probability(engine.alice.source, engine.bob.source, engine.alice.mu, engine.bob.mu,\
+                          pol_A, pol_B, phi, phi2, w)
 
     # Set bounds on search region
     bounds = (config['search_initial_low'], config['search_initial_high'])
@@ -220,7 +238,7 @@ def run_full_simulation(config_path: str = None, phase: int=1) -> Tuple[float, L
     plot_optimization_history(
         history=history,
         target=target_probability,
-        param_name=param_names[phase],
+        param_name=param_names[phase-1],
         bounds=valley_bounds,
         save_path=f"Images/phase_{phase}_opt_history_{round(time.time(), 4)}.png"
         )
@@ -228,4 +246,15 @@ def run_full_simulation(config_path: str = None, phase: int=1) -> Tuple[float, L
     # Final verification run
     (final_prob, coins), coin_index = engine._single_run(optimal_dist)
 
-    return optimal_dist, history, final_prob, coins, coin_index
+    # Get local emission time readings
+    ta = engine.alice.emission_schedule()
+    ta_prime = []
+    for i in range(len(ta)):
+        ta_prime.append(engine.alice.clock_reading(ta, i))
+    ta_prime = np.asarray(ta_prime)
+    tb = engine.bob.emission_schedule()
+    tb_prime = []
+    for i in range(len(tb)):
+        tb_prime.append(engine.bob.clock_reading(tb, i))
+    tb_prime = np.asarray(tb_prime)
+    return optimal_dist, history, final_prob, coins, coin_index, ta_prime, tb_prime
