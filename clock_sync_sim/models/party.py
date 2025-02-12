@@ -1,10 +1,11 @@
 import numpy as np
 
 class Party:
-    def __init__(self, worldtime, party_id, source_type, rep_rate, delay, offset):
+    def __init__(self, worldtime, party_id, source_type, rep_rate, delay, offset, mu=1):
         self.worldtime = worldtime
         self.party_id = party_id
         self.source = source_type
+        self.mu = mu
         self.rep_rate = rep_rate  # In Hz (10 MHz = 10^7 Hz)
         self.event_spacing_ns = int(1e9 / self.rep_rate)  # Convert Hz to ns
         self.delay = delay  # In ns
@@ -17,10 +18,16 @@ class Party:
         """Select a random polarization state."""
         return np.random.choice(self.pols)
 
+    def get_photon_num(self):
+        if self.source == 'coherent':
+            return np.random.poisson(np.sqrt(self.mu))
+        else:
+            return 1
+
     def emission_schedule(self):
         """Generate an emission schedule with timestamps, polarization, and photon count."""
         emit_schedule = [
-            {'t': i * self.event_spacing_ns + self.delay, 'pol': self.pol_selection(), 'photons': 1}
+            {'t': i * self.event_spacing_ns + self.delay, 'pol': self.pol_selection(), 'photons': self.get_photon_num()}
             for i in range(self.interval_length)
         ]
         return emit_schedule

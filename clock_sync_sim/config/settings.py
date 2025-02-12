@@ -16,16 +16,18 @@ C_FIBER = 0.20818920694444445  # Speed of light in fiber [m/ns]
 DEFAULT_PARAMS = {
     'parties': {
         'alice': {
-            'source_type': "SPDC",
+            'source_type': "spdc", # or 'coherent'
             'rep_rate': 10e6,
             'delay': 370,
-            'offset': 0
+            'offset': 0,
+            'mu' : 1
         },
         'bob': {
-            'source_type': "SPDC",
+            'source_type': "spdc", # or 'coherent'
             'rep_rate': 10e6,
             'delay': 0,
-            'offset': 0
+            'offset': 28,
+            'mu' : 1
         }
     },
     'distance_alice_to_bob': 19_800,
@@ -38,5 +40,4 @@ DEFAULT_PARAMS = {
     'max_iter': 100,
     'learning_rate': 0.1,
     'momentum': 0.9,
-    'fd_step': 1.0,  # Finite difference step size
 }
