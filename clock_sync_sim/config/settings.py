@@ -9,8 +9,9 @@ POL_DICT = {
 }
 
 # Physical constants
-SIGMA = 0.05
+SIGMA = 0.05                   # Spectral bandwidth [THz]
 C_FIBER = 0.20818920694444445  # Speed of light in fiber [m/ns]
+SIGMA_JITTER = 0.05 # Jitter standard deviation [ns]
 
 # Experiment parameters
 DEFAULT_PARAMS = {

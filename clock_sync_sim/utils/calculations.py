@@ -122,3 +122,19 @@ def calculate_probability(source_A, source_B, photon_A, photon_B, pol_A, pol_B, 
     else:
         print("Incorrect sources specified.")
         return 0
+    
+
+def jitter(sigma_jitter):
+    return np.random.normal(0, sigma_jitter)
+
+
+# t_CD = D_CD * L * pulse_width (wavelength)
+def chromatic_dispersion(length, pulse_width):
+    D_CD = 1.7e-5 # Dispersion coefficient [ns/nm/m]  
+    return D_CD * length * pulse_width
+
+
+# t_PMD = D_PMD * sqrt(L)
+def pmd(length):
+    D_PMD = 1.6e-6 #[ns/sqrt(m)]
+    return D_PMD * np.sqrt(length)

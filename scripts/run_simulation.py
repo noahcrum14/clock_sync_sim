@@ -45,5 +45,6 @@ if __name__ == "__main__":
     print(sch1, sch2)
     delta = sch2 - sch1 - dT
     print(f"Estimated offset: {np.mean(delta)} ns")
+    print(f"Estimated offset standard deviation: {np.std(delta)} ns")
     np.save("data/delta.npy", delta)
     print("Simulation complete.")
