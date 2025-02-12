@@ -1,4 +1,5 @@
-# Clock Sync via HOM Interference Simulation Project
+=======
+# Clock Synchronization via HOM Interference Simulation Project
 
 This project provides a simulation toolkit for quantum optical experiments focused on Hong-Ou-Mandel (HOM) interference in fiber-optic networks. The simulation allows users to study and optimize configurations by adjusting source parameters, MDL distances, and polarization states, leveraging optimization algorithms tailored for noisy objective functions.
 
@@ -46,9 +47,9 @@ The optimization routines (e.g., Golden Section Search, Gradient Descent, SPSA) 
 
 1. **Clone the Repository:**
 
-   ```bash
-   git clone https://github.com/yourusername/clock_sync_sim.git
-   cd clock_sync_sim
+```bash
+git clone https://github.com/yourusername/clock_sync_sim.git
+cd clock_sync_sim
 ```
 
 ### Run Code
